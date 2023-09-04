@@ -1,0 +1,42 @@
+This is the current state of my Media Server container stack.  It's currently run as a rootless container stack as a dedicated `mediaserver` user and group via `podman-compose`.  The associated `docker-compose.yml` file can be found under the `compose` folder in tis repo.
+
+A summary of the services Im running are below:
+
+- Radarr
+  - Provides: Movie library download manager
+  - Compose entry: radarr
+  - Container: cr.hotio.dev/hotio/radarr
+- Sonarr
+  - Provides: TV library download manager
+  - Compose entry: sonarr
+  - Container: cr.hotio.dev/hotio/sonarr
+- Prowlarr
+  - Provides: File tracker indexer
+  - Compose entry: prowlarr
+  - Container: cr.hotio.dev/hotio/prowlarr
+- Plex PMS
+  - Provides: Media server application
+  - Compose entry: plex
+  - Container: cr.hotio.dev/hotio/plex
+- qBitTorrent
+  - Provides: Torrent download client
+  - Compose entry: downloadarr
+  - Container: cr.hotio.dev/hotio/qbittorrent
+  - Note: This is not actually part of the `*arr` suite but I just named it as such out of jest
+  - Note: This container also contains a wireguard client that I currently have configured for NordVPN
+- TDarr
+  - Provides: Automatic transcoding of all downloaded media to h265 to save space
+  - Components:
+    - Server frontend
+      - Compose entry: tdarr
+      - Container: ghcr.io/haveagitgat/tdarr
+    - Worker node (NVIDIA GPU via NVEnv)
+      - Compose entry: tdarr-node-nvenc
+      - Container: ghcr.io/haveagitgat/tdarr_node
+    - Worker node (Intel GPU via QSV)
+      - Compose entry: tdarr-node-qsv
+      - Container: ghcr.io/haveagitgat/tdarr_node
+- SWAG
+  - Provides: LetsEncrypt certificate management
+  - Compose entry: swag
+  - Container: lscr.io/linuxserver/swag:latest

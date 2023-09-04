@@ -1,0 +1,233 @@
+version: "3.7"
+
+services:
+  radarr:
+    container_name: radarr
+    image: cr.hotio.dev/hotio/radarr
+    depends_on:
+      - downloadarr
+      - prowlarr
+    security_opt:
+      - label=disable
+    environment:
+      - PUID=2001
+      - PGID=2000
+      - UMASK=002
+      - TZ=America/New_York
+    volumes:
+      - /data/mediaserver/config/radarr:/config
+      - /data/mediaserver/data:/data
+      - /data/mediaserver/config/swag/etc:/swag-ssl
+    ports:
+      - 7878:7878
+    restart: unless-stopped
+
+  sonarr:
+    container_name: sonarr
+    image: cr.hotio.dev/hotio/sonarr
+    depends_on:
+      - downloadarr
+      - prowlarr
+    security_opt:
+      - label=disable
+    environment:
+      - PUID=2002
+      - PGID=2000
+      - UMASK=002
+      - TZ=America/New_York
+    volumes:
+      - /data/mediaserver/config/sonarr:/config
+      - /data/mediaserver/data:/data
+      - /data/mediaserver/config/swag/etc:/swag-ssl
+    ports:
+      - 8989:8989
+    restart: unless-stopped
+
+  prowlarr:
+    container_name: prowlarr
+    image: cr.hotio.dev/hotio/prowlarr
+    depends_on:
+      - downloadarr
+    security_opt:
+      - label=disable
+    environment:
+      - PUID=2003
+      - PGID=2000
+      - UMASK=002
+      - TZ=America/New_York
+    volumes:
+      - /data/mediaserver/config/prowlarr:/config
+      - /data/mediaserver/data:/data
+      - /data/mediaserver/config/swag/etc:/swag-ssl
+    ports:
+      - 9696:9696
+    restart: unless-stopped
+
+  plex:
+    container_name: plex
+    image: cr.hotio.dev/hotio/plex
+    depends_on:
+      - sonarr
+      - radarr
+    security_opt:
+      - label=disable
+    environment:
+      - PUID=2004
+      - PGID=2000
+      - UMASK=002
+      - TZ=America/New_York
+      #- ADVERTISE_IP=http://172.16.20.7:32400
+      - ALLOWED_NETWORKS=10.89.0.0/24,172.16.20.0/24
+      - PLEX_PASS="yes"
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    volumes:
+      - /data/mediaserver/config/plex:/config
+      - /data/mediaserver/data:/data
+      - /data/mediaserver/config/swag/etc:/swag-ssl
+    ports:
+      - 32400:32400/tcp
+      - 1900:1900/udp
+      - 5353:5353/udp
+      - 8324:8324/tcp
+      - 32410-32414:32410-32414/udp
+      - 32469:32469/tcp
+    devices:
+      - /dev/dri/card0:/dev/dri/card0
+      - /dev/dri/card1:/dev/dri/card1
+      - /dev/dri/renderD128:/dev/dri/renderD128
+      - /dev/dri/renderD129:/dev/dri/renderD129
+    restart: unless-stopped
+
+  downloadarr:
+    container_name: downloadarr
+    image: cr.hotio.dev/hotio/qbittorrent
+    security_opt:
+      - label=disable
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv6.conf.all.disable_ipv6=0
+      - net.ipv4.conf.all.forwarding=1
+    dns:
+      - 1.1.1.1
+    environment:
+      - PUID=2005
+      - PGID=2000
+      - UMASK=002
+      - TZ=America/New_York
+      - VPN_ENABLED=true
+      - VPN_LAN_NETWORK
+      - VPN_CONF=nordlynx
+      - VPN_ADDITIONAL_PORTS
+      - PRIVOXY_ENABLED=false
+    volumes:
+      - /data/mediaserver/config/qbittorrent:/config
+      - /data/mediaserver/data:/data
+      - /data/mediaserver/config/swag/etc:/swag-ssl
+    ports:
+      - 8080:8080
+    restart: unless-stopped
+
+  tdarr:
+    container_name: tdarr
+    image: ghcr.io/haveagitgat/tdarr
+    security_opt:
+      - label=disable
+    environment:
+      - PUID=2006
+      - PGID=2000
+      - UMASK=002
+      - TZ=America/New_York
+      - serverIP=0.0.0.0
+      - serverPort=8266
+      - webUIPort=8265
+      - inContainer=true
+    volumes:
+      - /data/mediaserver/config/tdarr/server/configs:/app/configs
+      - /data/mediaserver/config/tdarr/server/logs:/app/logs
+      - /data/mediaserver/config/tdarr/server/server:/app/server
+      - /data/mediaserver/data:/data
+      - /data/mediaserver/config/swag/etc:/swag-ssl
+    ports:
+      - 8265:8265
+    restart: unless-stopped
+
+  tdarr-node-nvenc:
+    container_name: tdarr-node-nvenc
+    image: ghcr.io/haveagitgat/tdarr_node
+    security_opt:
+      - label=disable
+    environment:
+      - PUID=2006
+      - PGID=2000
+      - UMASK=002
+      - TZ=America/New_York
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - serverIP=tdarr
+      - serverPort=8266
+      - inContainer=true
+      - nodeName=NodeNVENC
+    volumes:
+      - /data/mediaserver/config/tdarr/node-nvenc/configs:/app/configs
+      - /data/mediaserver/config/tdarr/node-nvenc/logs:/app/logs
+      - /data/mediaserver/data:/data
+    devices:
+      - /dev/dri/card1:/dev/dri/card1
+      - /dev/dri/renderD129:/dev/dri/renderD129
+    restart: unless-stopped
+
+  tdarr-node-qsv:
+    container_name: tdarr-node-qsv
+    image: ghcr.io/haveagitgat/tdarr_node
+    security_opt:
+      - label=disable
+    environment:
+      - PUID=2006
+      - PGID=2000
+      - UMASK=002
+      - TZ=America/New_York
+      - serverIP=tdarr
+      - serverPort=8266
+      - inContainer=true
+      - nodeName=NodeQSV
+    volumes:
+      - /data/mediaserver/config/tdarr/node-qsv/configs:/app/configs
+      - /data/mediaserver/config/tdarr/node-qsv/logs:/app/logs
+      - /data/mediaserver/data:/data
+    devices:
+      - /dev/dri/card0:/dev/dri/card0
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    restart: unless-stopped
+
+  swag:
+    image: lscr.io/linuxserver/swag:latest
+    container_name: swag
+    security_opt:
+      - label=disable
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=2007
+      - PGID=2000
+      - UMASK=002
+      - TZ=America/New_York
+      - URL=intergalactic-ether.duckdns.org
+      - VALIDATION=http
+      - SUBDOMAINS=plex,sonarr,radarr,tdarr,prowlarr,downloadarr
+      #- CERTPROVIDER=letsencrypt
+      #- DNSPLUGIN=cloudflare #optional
+      #- PROPAGATION= #optional
+      #- EMAIL= #optional
+      #- ONLY_SUBDOMAINS=false #optional
+      #- EXTRA_DOMAINS= #optional
+      - STAGING=false #optional
+    volumes:
+      - /data/mediaserver/config/swag:/config
+    ports:
+      - 8443:443
+      - 8080:80 #optional
+    restart: unless-stopped
